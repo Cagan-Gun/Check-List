@@ -22,6 +22,16 @@ window.resizable(False, False)
 createtext = ctk.CTkTextbox(window, width=200, height=10)
 createtext.grid(row=0, column=0, padx=10, pady=10)
 
+def wrap_text(text, width=10):
+    lines = []
+    for line in text.splitlines():
+        while len(line) > width:
+            lines.append(line[:width])
+            line = line[width:]
+        if line:
+            lines.append(line)
+    return "\n".join(lines)
+
 def create():
     textdata = createtext.get("1.0", ctk.END).strip()
     createtext.delete("1.0", ctk.END)
@@ -63,9 +73,19 @@ def deletefile():
     for widget in scrollablecheck.winfo_children():
         widget.destroy()
 
+    for widget in scrollableframe.winfo_children():
+        widget.destroy()
+
     addbutton()
 
-createbutton = ctk.CTkButton(window, text="Create", width=70, command=create)
+createbutton = ctk.CTkButton(
+    window, 
+    text="Create", 
+    width=70, 
+    fg_color="green", 
+    hover_color="darkgreen", 
+    command=create
+)
 createbutton.grid(row=0, column=1, padx=5, pady=10)
 
 deletefilebutton = ctk.CTkButton(
@@ -90,8 +110,8 @@ scrollablecheck.grid(row=0, column=1, padx=10, pady=10)
 def savecheckboxstates(filename, checkboxlist):
     filepath = get_path(filename)
     with open(filepath, 'w', encoding="utf-8") as file:
-        for cb in checkboxlist:
-            text = cb.cget("text")
+        for cb, label_item in checkboxlist:
+            text = label_item.cget("text")
             state = cb.get()
             file.write(f"{text};{state}\n")
 
@@ -119,18 +139,31 @@ def buttonclicked(buttontext):
             text = line
             ischecked = 0
 
+        cb_frame = ctk.CTkFrame(scrollablecheck, fg_color="transparent")
+        cb_frame.grid(row=i, column=0, columnspan=3, padx=5, pady=5, sticky="w")
+
         checkbox = ctk.CTkCheckBox(
-            scrollablecheck, 
-            text=text,
+            cb_frame, 
+            text="",
+            width=24,
             command=lambda: savecheckboxstates(cleanbuttontext, checkboxlist)
         )
+        checkbox.pack(side="left", anchor="n", padx=(0, 5))
+
+        cb_label = ctk.CTkLabel(
+            cb_frame,
+            text=text,
+            wraplength=280,
+            justify="left"
+        )
+        cb_label.pack(side="left", anchor="w")
+
         if ischecked == 1:
             checkbox.select()
         else:
             checkbox.deselect()
 
-        checkbox.grid(row=i, column=0, columnspan=3, padx=10, pady=5, sticky="w")
-        checkboxlist.append(checkbox)
+        checkboxlist.append((checkbox, cb_label))
 
     rowidx = len(lines)
 
@@ -141,6 +174,8 @@ def buttonclicked(buttontext):
         scrollablecheck,
         text='Add Check',
         width=80,
+        fg_color="green",
+        hover_color="darkgreen",
         command=lambda: addchecks(cleanbuttontext, addchecktext, checkboxlist)
     )
     addcheck.grid(row=rowidx, column=1, padx=5, pady=10, sticky="w")
@@ -169,13 +204,14 @@ def addbutton():
     for i in range(len(files)):
         cleanname = files[i].strip()
         if cleanname:
+            wrapped_name = wrap_text(cleanname, width=8)
             button = ctk.CTkButton(
                 scrollableframe,
-                text=cleanname,
+                text=wrapped_name,
                 width=80,
                 command=lambda sentence=cleanname: buttonclicked(sentence)
             )
-            button.grid(row=i, column=0, padx=10, pady=10, sticky="w")
+            button.grid(row=i, column=0, padx=5, pady=5, sticky="ew")
 
 def addchecks(filename, textbox, checkboxlist):
     savecheckboxstates(filename, checkboxlist)
@@ -189,7 +225,7 @@ def addchecks(filename, textbox, checkboxlist):
         buttonclicked(filename)
 
 def deletecheckeditems(filename, checkboxlist):
-    remainingcheckboxes = [check for check in checkboxlist if check.get() == 0]
+    remainingcheckboxes = [item for item in checkboxlist if item[0].get() == 0]
     savecheckboxstates(filename, remainingcheckboxes)
     buttonclicked(filename)
 
